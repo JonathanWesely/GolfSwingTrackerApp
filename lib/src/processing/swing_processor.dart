@@ -93,6 +93,7 @@ class SwingProcessor {
       impactIndex: impactIndex,
       deviceId: deviceId,
       deviceLabel: deviceLabel,
+      sourceFlags: capture.sourceFlags,
     );
   }
 }

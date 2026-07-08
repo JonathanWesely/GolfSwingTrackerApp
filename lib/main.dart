@@ -1,13 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
+import 'package:sqflite/sqflite.dart';
 
 import 'src/app_state.dart';
+import 'src/storage/swing_database.dart';
 import 'src/ui/home_screen.dart';
 
-void main() {
-  // Starts with one simulated sensor. Add more (simulated or real BLE)
-  // from the + button — each sensor gets a user-assigned name and club.
-  // When hardware arrives: + -> "Scan for GolfTracker sensor".
-  final state = AppState(startWithMock: true);
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Swings, club profiles, and the sensor registry persist here.
+  final db = await SwingDatabase.open(
+    factory: databaseFactory,
+    path: p.join(await getDatabasesPath(), 'golf_tracker.db'),
+  );
+
+  // First launch starts with one simulated sensor; add more (simulated or
+  // real hardware) from the + button — real sensors via "Scan for
+  // GolfTracker sensor" once Phase 1 firmware is flashed. Everything you
+  // add, rename, and record is restored on the next launch.
+  final state = await AppState.restore(db: db);
 
   runApp(GolfTrackerApp(state: state));
 }

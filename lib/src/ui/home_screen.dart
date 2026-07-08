@@ -4,6 +4,7 @@ import '../app_state.dart';
 import '../sensor/mock_sensor_link.dart';
 import '../sensor/sensor_link.dart';
 import 'club_profile_screen.dart';
+import 'scan_screen.dart';
 import 'session_screen.dart';
 import 'widgets/path_painter.dart';
 
@@ -60,6 +61,10 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
               const SizedBox(height: 4),
+              if (state.pendingInstant != null) ...[
+                _InstantMetricsCard(instant: state.pendingInstant!),
+                const SizedBox(height: 12),
+              ],
               if (swing != null) ...[
                 _LatestSwingCard(state: state),
                 const SizedBox(height: 12),
@@ -127,7 +132,50 @@ class HomeScreen extends StatelessWidget {
       ),
     );
     if (choice == 'mock') state.addMockSensor();
-    if (choice == 'ble') state.addBleSensor();
+    if (choice == 'ble' && context.mounted) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ScanScreen(state: state)),
+      );
+    }
+  }
+}
+
+/// Flashes up the moment a sensor reports impact — the same numbers the
+/// AR HUD will show <500 ms after contact, while the full capture burst
+/// is still transferring.
+class _InstantMetricsCard extends StatelessWidget {
+  final PendingInstant instant;
+  const _InstantMetricsCard({required this.instant});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            const Icon(Icons.bolt, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '${instant.clubSpeedMph.toStringAsFixed(1)} mph · '
+                '${instant.faceAngleDeg >= 0 ? '+' : ''}'
+                '${instant.faceAngleDeg.toStringAsFixed(1)}°  '
+                '(instant — full capture incoming)',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -294,6 +342,31 @@ class _LatestSwingCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text('${s.deviceLabel} · $club',
                     style: Theme.of(context).textTheme.bodySmall),
+              ),
+            if (s.hasQualityFlags)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.tertiary),
+                    const SizedBox(width: 4),
+                    Text(
+                      s.isFallbackCapture
+                          ? 'BHY2 fallback capture — check ICM wiring'
+                          : s.speedExtrapolated
+                              ? 'Gyro clipped — speed extrapolated'
+                              : 'Quality checks failed on primary IMU',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(
+                              color: Theme.of(context).colorScheme.tertiary),
+                    ),
+                  ],
+                ),
               ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,

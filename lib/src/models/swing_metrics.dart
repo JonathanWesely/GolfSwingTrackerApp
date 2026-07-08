@@ -23,6 +23,13 @@ class SwingMetrics {
   /// Index into [pathM] of the impact moment.
   final int impactIndex;
 
+  /// Source/quality flags carried through from the capture
+  /// (docs/BLE_PROTOCOL.md): bit0 = BHY2 fallback capture, bit1 = ICM
+  /// present but failed quality checks, bit2 = gyro saturation detected.
+  /// Repeated fallback flags are the early warning that the ICM's glued
+  /// VIN joint needs attention.
+  final int sourceFlags;
+
   const SwingMetrics({
     required this.timestamp,
     required this.clubId,
@@ -32,6 +39,7 @@ class SwingMetrics {
     required this.impactIndex,
     this.deviceId = '',
     this.deviceLabel = '',
+    this.sourceFlags = 0,
   });
 
   double get clubSpeedMph => clubSpeedMps * 2.23694;
@@ -41,6 +49,13 @@ class SwingMetrics {
     return faceAngleDeg > 0 ? 'Open' : 'Closed';
   }
 
+  bool get isFallbackCapture => sourceFlags & 0x01 != 0;
+  bool get failedQualityChecks => sourceFlags & 0x02 != 0;
+  bool get speedExtrapolated => sourceFlags & 0x04 != 0;
+
+  /// True when any quality flag is set — the UI shows a warning badge.
+  bool get hasQualityFlags => sourceFlags != 0;
+
   Map<String, dynamic> toJson() => {
         'timestamp': timestamp.toIso8601String(),
         'clubId': clubId,
@@ -49,6 +64,7 @@ class SwingMetrics {
         'clubSpeedMps': clubSpeedMps,
         'faceAngleDeg': faceAngleDeg,
         'impactIndex': impactIndex,
+        'sourceFlags': sourceFlags,
         'pathM': pathM.map((p) => [p.x, p.y, p.z]).toList(),
       };
 
@@ -60,6 +76,7 @@ class SwingMetrics {
         clubSpeedMps: (j['clubSpeedMps'] as num).toDouble(),
         faceAngleDeg: (j['faceAngleDeg'] as num).toDouble(),
         impactIndex: j['impactIndex'] as int,
+        sourceFlags: (j['sourceFlags'] as int?) ?? 0,
         pathM: (j['pathM'] as List)
             .map((p) => Vector3((p[0] as num).toDouble(),
                 (p[1] as num).toDouble(), (p[2] as num).toDouble()))

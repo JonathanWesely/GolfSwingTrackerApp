@@ -58,7 +58,7 @@ Sent over Swing Data after impact detection. Negotiate MTU ≥ 185 first.
 | t_us | u32 | microseconds since capture start |
 | qw qx qy qz | i16 ×4 | quaternion × 32767 |
 | gx gy gz | i16 ×3 | gyro rad/s × 400 (saturates ±81.9 rad/s ≈ 4693 dps; covers the ICM-20649's ±4000 dps, resolution 0.14 dps) |
-| ax ay az | i16 ×3 | linear accel m/s² × 200 (saturates ±163 m/s² ≈ 16.6 g) |
+| ax ay az | i16 ×3 | linear accel m/s² × 100 (saturates ±327 m/s² ≈ 33.4 g; covers the ICM-20649's ±30 g full scale, resolution 0.01 m/s²) |
 
 Capture window: ~1.5 s pre-impact + 0.5 s post at 400 Hz ≈ 800 samples
 ≈ 115 data chunks ≈ 21 kB — a 2–4 s transfer at realistic BLE throughput.

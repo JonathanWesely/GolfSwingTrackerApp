@@ -36,13 +36,77 @@ class ControlOp {
   static const int disarm = 0x03;
 }
 
+/// Decoded instant-metrics packet — the ~12-byte notification the firmware
+/// sends the moment impact is detected, seconds before the full capture
+/// burst finishes transferring. This is what makes a <500 ms HUD possible.
+class InstantMetrics {
+  /// Impact time, microseconds since capture start.
+  final int tUs;
+
+  /// Peak gyro magnitude at impact, rad/s. Multiply by the club's shaft
+  /// length for clubhead speed (v = omega * r).
+  final double peakOmegaRadS;
+
+  /// Face angle at impact relative to address, degrees (positive = open).
+  final double faceAngleDeg;
+
+  /// Same flag bits as SwingCapture.sourceFlags.
+  final int sourceFlags;
+
+  const InstantMetrics({
+    required this.tUs,
+    required this.peakOmegaRadS,
+    required this.faceAngleDeg,
+    this.sourceFlags = 0,
+  });
+
+  double clubSpeedMps(double shaftLengthM) => peakOmegaRadS * shaftLengthM;
+  double clubSpeedMph(double shaftLengthM) =>
+      clubSpeedMps(shaftLengthM) * 2.23694;
+}
+
+/// Codec for the Instant Metrics characteristic (12 bytes, little-endian):
+///   u32 t_us | i16 peakOmega (rad/s x400) | i16 faceAngle (deg x100)
+///   | u8 sourceFlags | u8 pad | u16 reserved
+class InstantMetricsCodec {
+  static const int packetLength = 12;
+  static const double omegaScale = 400.0;
+  static const double faceScale = 100.0;
+
+  static Uint8List encode(InstantMetrics m) {
+    final b = ByteData(packetLength);
+    b.setUint32(0, m.tUs, Endian.little);
+    b.setInt16(4, (m.peakOmegaRadS * omegaScale).round().clamp(-32768, 32767),
+        Endian.little);
+    b.setInt16(6, (m.faceAngleDeg * faceScale).round().clamp(-32768, 32767),
+        Endian.little);
+    b.setUint8(8, m.sourceFlags & 0xff);
+    // byte 9 pad, bytes 10-11 reserved
+    return b.buffer.asUint8List();
+  }
+
+  /// Returns null for malformed (too-short) packets.
+  static InstantMetrics? decode(Uint8List data) {
+    if (data.length < packetLength) return null;
+    final b = ByteData.sublistView(data);
+    return InstantMetrics(
+      tUs: b.getUint32(0, Endian.little),
+      peakOmegaRadS: b.getInt16(4, Endian.little) / omegaScale,
+      faceAngleDeg: b.getInt16(6, Endian.little) / faceScale,
+      sourceFlags: b.getUint8(8),
+    );
+  }
+}
+
 /// Binary sample layout (little-endian, 24 bytes):
 ///   u32  t_us          microseconds since capture start
 ///   i16  qw,qx,qy,qz   quaternion * 32767
 ///   i16  gx,gy,gz      gyro rad/s * 400         (±81.9 rad/s ≈ ±4693 dps —
 ///                      covers the ICM-20649's full ±4000 dps range;
 ///                      resolution 0.14 dps)
-///   i16  ax,ay,az      linear accel m/s^2 * 200 (±163 m/s^2 ≈ ±16.6 g)
+///   i16  ax,ay,az      linear accel m/s^2 * 100 (±327 m/s^2 ≈ ±33.4 g —
+///                      covers the ICM-20649's full ±30 g range;
+///                      resolution 0.01 m/s^2)
 ///
 /// Chunk layout (fits a 185-byte MTU):
 ///   u16 seq | u16 totalChunks | payload (N whole samples, ≤7 per chunk)
@@ -53,7 +117,7 @@ class SwingPacketCodec {
   static const int samplesPerChunk = 7;
   static const double quatScale = 32767.0;
   static const double gyroScale = 400.0;
-  static const double accelScale = 200.0;
+  static const double accelScale = 100.0;
 
   /// Encodes a capture into BLE-sized chunks (used by tests and by the
   /// firmware simulator; the real encoder lives in firmware).

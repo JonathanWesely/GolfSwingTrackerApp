@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import '../models/swing_capture.dart';
 import '../processing/quaternion.dart';
+import 'gatt_protocol.dart';
 import 'sensor_link.dart';
 
 /// Simulated Nicla Sense ME.
@@ -17,6 +18,7 @@ class MockSensorLink implements SensorLink {
 
   final _statusCtrl = StreamController<SensorStatus>.broadcast();
   final _swingCtrl = StreamController<SwingCapture>.broadcast();
+  final _instantCtrl = StreamController<InstantMetrics>.broadcast();
   final _batteryCtrl = StreamController<double>.broadcast();
   final math.Random _rng;
 
@@ -39,9 +41,13 @@ class MockSensorLink implements SensorLink {
   Stream<SwingCapture> get swings => _swingCtrl.stream;
 
   @override
+  Stream<InstantMetrics> get instantMetrics => _instantCtrl.stream;
+
+  @override
   Stream<double> get batteryLevel => _batteryCtrl.stream;
 
   void _setStatus(SensorStatus s) {
+    if (_statusCtrl.isClosed) return; // disposed mid-delay
     _status = s;
     _statusCtrl.add(s);
   }
@@ -95,17 +101,42 @@ class MockSensorLink implements SensorLink {
 
   /// Triggers a synthetic swing. UI calls this from a "Simulate swing"
   /// button; tests call [generateSwing] directly for determinism.
+  ///
+  /// Mirrors real firmware timing: the instant-metrics packet arrives
+  /// first (impact + <500 ms), then the full capture burst after a short
+  /// simulated BLE transfer delay.
   Future<void> simulateSwing({
     double clubheadSpeedMph = 80,
     double faceAngleDeg = 2.0,
     double shaftLengthM = 1.143,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    _swingCtrl.add(generateSwing(
+    final capture = generateSwing(
       clubheadSpeedMph: clubheadSpeedMph,
       faceAngleDeg: faceAngleDeg,
       shaftLengthM: shaftLengthM,
+    );
+
+    // Instant metrics: what firmware knows the moment impact is detected.
+    var peakOmega = 0.0;
+    var peakT = 0.0;
+    for (final s in capture.samples) {
+      final m = s.gyroRadS.length;
+      if (m > peakOmega) {
+        peakOmega = m;
+        peakT = s.t;
+      }
+    }
+    _instantCtrl.add(InstantMetrics(
+      tUs: (peakT * 1e6).round(),
+      peakOmegaRadS: peakOmega,
+      faceAngleDeg: faceAngleDeg,
+      sourceFlags: capture.sourceFlags,
     ));
+
+    // Full burst lands ~0.4 s later (real BLE takes ~2–4 s).
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    _swingCtrl.add(capture);
     _setStatus(SensorStatus.connected);
   }
 
@@ -238,6 +269,7 @@ class MockSensorLink implements SensorLink {
     stopAutoSwings();
     _statusCtrl.close();
     _swingCtrl.close();
+    _instantCtrl.close();
     _batteryCtrl.close();
   }
 }

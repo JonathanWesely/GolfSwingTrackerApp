@@ -27,8 +27,42 @@ void main() {
       final b = decoded.samples[i];
       expect((a.t - b.t).abs(), lessThan(2e-6));
       expect((a.gyroRadS - b.gyroRadS).length, lessThan(3e-3));
-      expect((a.linAccel - b.linAccel).length, lessThan(2e-2));
+      // Accel fidelity only applies inside the codec's ±327 m/s² range.
+      // (The ICM-20649 itself clips at ±30 g ≈ 294 m/s²; the mock's rigid-
+      // arm model overshoots that near impact — see the saturation test.)
+      if (a.linAccel.length < 300) {
+        expect((a.linAccel - b.linAccel).length, lessThan(2e-2));
+      }
       expect((a.orientation.w - b.orientation.w).abs(), lessThan(1e-3));
+    }
+  });
+
+  test('out-of-range accel saturates cleanly instead of wrapping around', () {
+    final mock = MockSensorLink(seed: 9);
+    final capture = mock.generateSwing(
+        clubheadSpeedMph: 110, faceAngleDeg: 0, shaftLengthM: 1.143);
+    final decoded = SwingPacketCodec.decode(SwingPacketCodec.encode(capture))!;
+
+    // The mock's rigid-arm swing really does exceed the codec range…
+    var maxIn = 0.0;
+    for (final s in capture.samples) {
+      if (s.linAccel.length > maxIn) maxIn = s.linAccel.length;
+    }
+    expect(maxIn, greaterThan(400));
+
+    // …and every decoded axis clamps (same sign, magnitude ≤ ceiling) —
+    // an i16 wraparound would flip signs and corrupt path integration.
+    const ceiling = 32767 / SwingPacketCodec.accelScale; // ≈ 327.67 m/s²
+    for (var i = 0; i < capture.samples.length; i++) {
+      final a = capture.samples[i].linAccel;
+      final b = decoded.samples[i].linAccel;
+      for (final (va, vb) in [(a.x, b.x), (a.y, b.y), (a.z, b.z)]) {
+        expect(vb.abs(), lessThanOrEqualTo(ceiling + 1e-9));
+        if (va.abs() > 1.0) {
+          expect(va.sign, vb.sign,
+              reason: 'axis sign flipped at sample $i — wraparound?');
+        }
+      }
     }
   });
 

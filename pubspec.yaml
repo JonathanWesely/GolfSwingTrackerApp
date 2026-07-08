@@ -9,14 +9,24 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # BLE link to the Nicla Sense ME. The app runs fully on MockSensorLink
-  # until hardware arrives; this dep is only exercised by BleSensorLink.
+  # BLE link to the Nicla Sense ME. Only flutter_blue_plus_transport.dart
+  # touches this package — everything else (incl. all of BleSensorLink's
+  # protocol logic) goes through the BleTransport abstraction.
   flutter_blue_plus: ^1.35.0
+  # Persistent storage: swings, club profiles, and the sensor registry
+  # (SwingDatabase). Uses the platform's native SQLite on Android/iOS.
+  # sqflite_common provides the pure-Dart types SwingDatabase is written
+  # against, keeping it testable without a device.
+  sqflite: ^2.4.1
+  sqflite_common: ^2.5.0
+  path: ^1.9.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  # Runs SwingDatabase against real SQLite in plain unit tests (no device).
+  sqflite_common_ffi: ^2.3.4
 
 flutter:
   uses-material-design: true

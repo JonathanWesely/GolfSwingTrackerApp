@@ -102,7 +102,17 @@ class _SessionScreenState extends State<SessionScreen> {
                               ? club
                               : '${s.deviceLabel} · $club';
                           return ListTile(
-                            leading: const Icon(Icons.sports_golf),
+                            leading: s.hasQualityFlags
+                                ? Tooltip(
+                                    message: s.isFallbackCapture
+                                        ? 'BHY2 fallback capture'
+                                        : 'Quality flags set',
+                                    child: Icon(Icons.warning_amber_rounded,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .tertiary),
+                                  )
+                                : const Icon(Icons.sports_golf),
                             title: Text(
                                 '${s.clubSpeedMph.toStringAsFixed(1)} mph · '
                                 '${s.faceAngleDeg >= 0 ? '+' : ''}${s.faceAngleDeg.toStringAsFixed(1)}° ${s.faceLabel.toLowerCase()}'),
