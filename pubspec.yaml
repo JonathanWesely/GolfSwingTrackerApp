@@ -1,0 +1,22 @@
+name: golf_tracker_app
+description: Companion app for the open-source AR golf swing tracker (Nicla Sense ME).
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # BLE link to the Nicla Sense ME. The app runs fully on MockSensorLink
+  # until hardware arrives; this dep is only exercised by BleSensorLink.
+  flutter_blue_plus: ^1.35.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
