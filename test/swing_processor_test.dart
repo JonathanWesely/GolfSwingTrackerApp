@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golf_tracker_app/src/calibration/calibration.dart';
 import 'package:golf_tracker_app/src/models/club_profile.dart';
 import 'package:golf_tracker_app/src/processing/quaternion.dart';
 import 'package:golf_tracker_app/src/processing/swing_processor.dart';
@@ -15,6 +16,29 @@ void main() {
           clubheadSpeedMph: 80, faceAngleDeg: 0, shaftLengthM: 1.143);
       final m = processor.process(capture, driver);
       expect(m.clubSpeedMph, closeTo(80, 80 * 0.03));
+    });
+
+    test('club path reads ~straight for the laterally-clean mock swing', () {
+      final mock = MockSensorLink(seed: 1);
+      final capture = mock.generateSwing(
+          clubheadSpeedMph: 80, faceAngleDeg: 0, shaftLengthM: 1.143);
+      final m = processor.process(capture, driver);
+      // The mock injects no sideways path deviation, so the recovered club
+      // path must sit near zero. A large value would mean the velocity or
+      // frame handling is wrong.
+      expect(m.clubPathDeg.abs(), lessThan(3.0));
+    });
+
+    test('applies a calibration to face and path', () {
+      final mock = MockSensorLink(seed: 2);
+      final capture = mock.generateSwing(
+          clubheadSpeedMph: 75, faceAngleDeg: 4.0, shaftLengthM: 1.143);
+      const cal =
+          Calibration(faceOffset: 2.0, pathScale: -1.0, pathOffset: 1.0);
+      final raw = processor.process(capture, driver);
+      final cald = processor.process(capture, driver, calibration: cal);
+      expect(cald.faceAngleDeg, closeTo(raw.faceAngleDeg + 2.0, 1e-9));
+      expect(cald.clubPathDeg, closeTo(-1.0 * raw.clubPathDeg + 1.0, 1e-9));
     });
 
     test('face angle within 0.7 degrees (open)', () {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../sensor/mock_sensor_link.dart';
 import '../sensor/sensor_link.dart';
+import 'calibration_screen.dart';
 import 'club_profile_screen.dart';
 import 'scan_screen.dart';
 import 'session_screen.dart';
@@ -43,6 +44,14 @@ class HomeScreen extends StatelessWidget {
                     MaterialPageRoute(
                         builder: (_) => ClubProfileScreen(state: state))),
               ),
+              IconButton(
+                icon: const Icon(Icons.tune),
+                tooltip: 'Calibration (Garmin R10)',
+                onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => CalibrationScreen(state: state))),
+              ),
             ],
           ),
           body: ListView(
@@ -74,19 +83,10 @@ class HomeScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Swing path (down the line)',
+                        Text('Swing path',
                             style: Theme.of(context).textTheme.titleSmall),
                         const SizedBox(height: 8),
-                        SizedBox(
-                          height: 200,
-                          width: double.infinity,
-                          child: CustomPaint(
-                            painter: PathPainter(
-                              path: swing.pathM,
-                              impactIndex: swing.impactIndex,
-                            ),
-                          ),
-                        ),
+                        SwingPathGauge(deviationDeg: swing.clubPathDeg),
                       ],
                     ),
                   ),

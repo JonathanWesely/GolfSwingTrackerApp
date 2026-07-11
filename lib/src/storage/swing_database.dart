@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:sqflite_common/sqlite_api.dart';
 
+import '../calibration/calibration.dart';
 import '../models/club_profile.dart';
 import '../models/swing_metrics.dart';
 import '../processing/quaternion.dart';
@@ -32,7 +33,7 @@ class SensorRecord {
 /// with the real sqflite factory in main.dart; on-device this uses the
 /// platform's native SQLite (Android/iOS).
 class SwingDatabase {
-  static const int schemaVersion = 1;
+  static const int schemaVersion = 3;
 
   final Database _db;
   SwingDatabase._(this._db);
@@ -59,6 +60,7 @@ class SwingDatabase {
               face_angle_deg REAL NOT NULL,
               impact_index INTEGER NOT NULL,
               source_flags INTEGER NOT NULL DEFAULT 0,
+              club_path_deg REAL NOT NULL DEFAULT 0,
               path_json TEXT NOT NULL
             )
           ''');
@@ -79,6 +81,34 @@ class SwingDatabase {
               sort INTEGER NOT NULL DEFAULT 0
             )
           ''');
+          await db.execute('''
+            CREATE TABLE calibration(
+              id INTEGER PRIMARY KEY,
+              face_scale REAL NOT NULL,
+              face_offset REAL NOT NULL,
+              path_scale REAL NOT NULL,
+              path_offset REAL NOT NULL
+            )
+          ''');
+        },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          // v1 -> v2: club path stored per swing.
+          if (oldVersion < 2) {
+            await db.execute('ALTER TABLE swings '
+                'ADD COLUMN club_path_deg REAL NOT NULL DEFAULT 0');
+          }
+          // v2 -> v3: face/path calibration table.
+          if (oldVersion < 3) {
+            await db.execute('''
+              CREATE TABLE calibration(
+                id INTEGER PRIMARY KEY,
+                face_scale REAL NOT NULL,
+                face_offset REAL NOT NULL,
+                path_scale REAL NOT NULL,
+                path_offset REAL NOT NULL
+              )
+            ''');
+          }
         },
       ),
     );
@@ -120,6 +150,7 @@ class SwingDatabase {
         'face_angle_deg': m.faceAngleDeg,
         'impact_index': m.impactIndex,
         'source_flags': m.sourceFlags,
+        'club_path_deg': m.clubPathDeg,
         'path_json': jsonEncode(
             [for (final p in m.pathM) [p.x, p.y, p.z]]),
       };
@@ -133,6 +164,7 @@ class SwingDatabase {
         faceAngleDeg: (r['face_angle_deg'] as num).toDouble(),
         impactIndex: (r['impact_index'] as num).toInt(),
         sourceFlags: (r['source_flags'] as num?)?.toInt() ?? 0,
+        clubPathDeg: (r['club_path_deg'] as num?)?.toDouble() ?? 0.0,
         pathM: [
           for (final p in jsonDecode(r['path_json'] as String) as List)
             Vector3((p[0] as num).toDouble(), (p[1] as num).toDouble(),
@@ -200,6 +232,34 @@ class SwingDatabase {
           isMock: (r['is_mock'] as num) != 0,
         )
     ];
+  }
+
+  // --- Calibration ---------------------------------------------------------
+
+  Future<void> saveCalibration(Calibration c) async {
+    await _db.insert(
+      'calibration',
+      {
+        'id': 0,
+        'face_scale': c.faceScale,
+        'face_offset': c.faceOffset,
+        'path_scale': c.pathScale,
+        'path_offset': c.pathOffset,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<Calibration?> loadCalibration() async {
+    final rows = await _db.query('calibration', where: 'id = 0', limit: 1);
+    if (rows.isEmpty) return null;
+    final r = rows.first;
+    return Calibration(
+      faceScale: (r['face_scale'] as num).toDouble(),
+      faceOffset: (r['face_offset'] as num).toDouble(),
+      pathScale: (r['path_scale'] as num).toDouble(),
+      pathOffset: (r['path_offset'] as num).toDouble(),
+    );
   }
 
   Future<void> close() => _db.close();

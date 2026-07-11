@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'calibration/calibration.dart';
+import 'calibration/calibration_engine.dart';
 import 'models/club_profile.dart';
 import 'models/swing_metrics.dart';
 import 'processing/swing_processor.dart';
@@ -98,6 +100,11 @@ class AppState extends ChangeNotifier {
   /// each capture — so swings stream in with zero button presses.
   bool handsFree = true;
 
+  /// Face/path correction applied to every capture, from the R10 calibration
+  /// flow. Identity until you calibrate. (Speed calibration lives in each
+  /// club's effective radius, ClubProfile.shaftLengthM.)
+  Calibration calibration = const Calibration.identity();
+
   AppState({
     bool startWithMock = true,
     SwingDatabase? db,
@@ -130,6 +137,9 @@ class AppState extends ChangeNotifier {
           ..clear()
           ..addAll(storedClubs);
       }
+
+      final storedCalibration = await db.loadCalibration();
+      if (storedCalibration != null) state.calibration = storedCalibration;
 
       for (final rec in await db.loadSensors()) {
         state._restoreSensor(rec);
@@ -245,6 +255,7 @@ class AppState extends ChangeNotifier {
         s.club,
         deviceId: s.id,
         deviceLabel: s.label,
+        calibration: calibration,
       );
       repository.add(metrics);
       latestSwing = metrics;
@@ -297,6 +308,34 @@ class AppState extends ChangeNotifier {
       if (s.club.id == updated.id) s.club = updated;
     }
     unawaited(_db?.saveClubs(List.of(clubs)));
+    notifyListeners();
+  }
+
+  /// Applies a fitted [CalibrationResult]: scales each club's effective
+  /// radius for speed, sets the face/path correction, and persists both.
+  void applyCalibration(CalibrationResult result) {
+    result.speedScaleByClub.forEach((clubId, scale) {
+      final i = clubs.indexWhere((c) => c.id == clubId);
+      if (i >= 0) {
+        clubs[i] =
+            clubs[i].copyWith(shaftLengthM: clubs[i].shaftLengthM * scale);
+      }
+    });
+    for (final s in sensors) {
+      final i = clubs.indexWhere((c) => c.id == s.club.id);
+      if (i >= 0) s.club = clubs[i];
+    }
+    calibration = result.calibration;
+    unawaited(_db?.saveClubs(List.of(clubs)));
+    unawaited(_db?.saveCalibration(calibration));
+    notifyListeners();
+  }
+
+  /// Clears the face/path correction back to identity (raw sensor values).
+  /// Speed radii already applied to clubs are left as-is.
+  void resetCalibration() {
+    calibration = const Calibration.identity();
+    unawaited(_db?.saveCalibration(calibration));
     notifyListeners();
   }
 

@@ -43,16 +43,24 @@ tools). Budget ~30–45 min for the one-time installs, mostly download waiting.
    ```
 
    (so that `C:\src\flutter\bin` exists).
-4. Add Flutter to your PATH so the terminal can find it:
-   - Press **Start**, type `env`, open **"Edit the system environment
-     variables."**
-   - Click **Environment Variables…**
-   - Under **User variables**, click **Path** → **Edit** → **New**, and paste:
+4. Add Flutter to your PATH so the terminal can find it. This is the step
+   that trips people up — there are two cases, so read both before clicking:
+   - Press **Start**, type `environment variables`, and click
+     **"Edit environment variables for your account."**
+   - The **Environment Variables** window opens. Look at the **top box**,
+     labeled **"User variables for [your name]."**
+   - **Case A — you DO see a `Path` row in that top box:** click it once to
+     select it, click **Edit…**, then in the editor click **New**, paste
+     `C:\src\flutter\bin`, and click **OK**.
+   - **Case B — there is NO `Path` row in the top box** (very common on a
+     fresh Windows 11 account — you'll usually just see `TEMP` and `TMP`):
+     click the **New…** button *directly under the top box*, then fill in:
+       - **Variable name:** `Path`
+       - **Variable value:** `C:\src\flutter\bin`
 
-     ```
-     C:\src\flutter\bin
-     ```
-   - Click **OK** on all three dialogs to save.
+     and click **OK**. (Creating a user `Path` like this is fine — Windows
+     automatically combines it with the system one, so Flutter is found.)
+   - Click **OK** to close the remaining window(s) and save.
 5. **Close every open terminal window** and open a fresh **PowerShell**
    (Start → type `PowerShell` → Enter). PATH changes only apply to new
    windows.

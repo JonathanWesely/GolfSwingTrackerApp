@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import '../calibration/calibration.dart';
 import '../models/club_profile.dart';
 import '../models/swing_capture.dart';
 import '../models/swing_metrics.dart';
@@ -27,6 +30,7 @@ class SwingProcessor {
     ClubProfile club, {
     String deviceId = '',
     String deviceLabel = '',
+    Calibration calibration = const Calibration.identity(),
   }) {
     final samples = capture.samples;
     if (samples.length < 3) {
@@ -46,6 +50,8 @@ class SwingProcessor {
     }
 
     // --- 2. Club speed: v = omega * r ------------------------------------
+    // The club's effective radius (shaftLengthM) is where speed calibration
+    // lives — a calibrated radius scales this directly.
     final clubSpeedMps = peakOmega * club.shaftLengthM;
 
     // --- 3. Face angle: twist about shaft, address -> impact --------------
@@ -53,7 +59,7 @@ class SwingProcessor {
     final rel = (capture.addressReference.conjugate *
             samples[impactIndex].orientation)
         .normalized();
-    final faceAngleDeg =
+    final rawFaceAngleDeg =
         rel.twistAngleAround(shaftAxis) * 180.0 / 3.141592653589793;
 
     // --- 4. Path: double-integrate world-frame linear acceleration -------
@@ -84,6 +90,23 @@ class SwingProcessor {
       path[i] = path[i - 1] + (vel[i] + vel[i - 1]) * (dt / 2);
     }
 
+    // --- 5. Club path: horizontal travel direction at impact -------------
+    // The direction the grip is actually moving through impact, expressed in
+    // the address (aim) reference frame so it is independent of the sensor's
+    // arbitrary world heading (there is no magnetometer). atan2(lateral,
+    // forward): positive leans right of the target line, negative left.
+    //
+    // Provisional: the sign and any mount-rotation offset need calibrating
+    // against a launch monitor on real swings (plan Phase 5). The simulator
+    // injects no lateral path deviation, so this reads ~0 for mock swings.
+    final vImpact =
+        capture.addressReference.conjugate.rotate(vel[impactIndex]);
+    final rawClubPathDeg = math.atan2(vImpact.x, vImpact.y) * 180.0 / math.pi;
+
+    // --- 6. Apply the R10 calibration (identity until calibrated) --------
+    final faceAngleDeg = calibration.applyFace(rawFaceAngleDeg);
+    final clubPathDeg = calibration.applyPath(rawClubPathDeg);
+
     return SwingMetrics(
       timestamp: capture.timestamp,
       clubId: club.id,
@@ -94,6 +117,7 @@ class SwingProcessor {
       deviceId: deviceId,
       deviceLabel: deviceLabel,
       sourceFlags: capture.sourceFlags,
+      clubPathDeg: clubPathDeg,
     );
   }
 }

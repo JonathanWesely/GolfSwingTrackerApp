@@ -23,6 +23,15 @@ class SwingMetrics {
   /// Index into [pathM] of the impact moment.
   final int impactIndex;
 
+  /// Club path at impact: horizontal travel direction of the grip through
+  /// impact relative to the address aim line, degrees. Positive = moving
+  /// right of the target line (in-to-out for a RH golfer), negative = left
+  /// (out-to-in), ~0 = straight down the line. Derived from the
+  /// double-integrated path, so it is provisional until calibrated against a
+  /// launch monitor on real swings (plan Phase 5); the simulator injects no
+  /// lateral deviation, so mock swings read ~0.
+  final double clubPathDeg;
+
   /// Source/quality flags carried through from the capture
   /// (docs/BLE_PROTOCOL.md): bit0 = BHY2 fallback capture, bit1 = ICM
   /// present but failed quality checks, bit2 = gyro saturation detected.
@@ -40,6 +49,7 @@ class SwingMetrics {
     this.deviceId = '',
     this.deviceLabel = '',
     this.sourceFlags = 0,
+    this.clubPathDeg = 0.0,
   });
 
   double get clubSpeedMph => clubSpeedMps * 2.23694;
@@ -47,6 +57,12 @@ class SwingMetrics {
   String get faceLabel {
     if (faceAngleDeg.abs() < 1.0) return 'Square';
     return faceAngleDeg > 0 ? 'Open' : 'Closed';
+  }
+
+  /// Human label for club path direction.
+  String get pathLabel {
+    if (clubPathDeg.abs() < 0.5) return 'Straight';
+    return clubPathDeg > 0 ? 'In-to-out (right)' : 'Out-to-in (left)';
   }
 
   bool get isFallbackCapture => sourceFlags & 0x01 != 0;
@@ -65,6 +81,7 @@ class SwingMetrics {
         'faceAngleDeg': faceAngleDeg,
         'impactIndex': impactIndex,
         'sourceFlags': sourceFlags,
+        'clubPathDeg': clubPathDeg,
         'pathM': pathM.map((p) => [p.x, p.y, p.z]).toList(),
       };
 
@@ -77,6 +94,7 @@ class SwingMetrics {
         faceAngleDeg: (j['faceAngleDeg'] as num).toDouble(),
         impactIndex: j['impactIndex'] as int,
         sourceFlags: (j['sourceFlags'] as int?) ?? 0,
+        clubPathDeg: (j['clubPathDeg'] as num?)?.toDouble() ?? 0.0,
         pathM: (j['pathM'] as List)
             .map((p) => Vector3((p[0] as num).toDouble(),
                 (p[1] as num).toDouble(), (p[2] as num).toDouble()))

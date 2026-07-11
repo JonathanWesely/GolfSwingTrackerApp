@@ -25,6 +25,8 @@ class SwingDetailScreen extends StatelessWidget {
                       '${swing.clubSpeedMph.toStringAsFixed(1)} mph'),
                   _row('Face angle',
                       '${swing.faceAngleDeg >= 0 ? '+' : ''}${swing.faceAngleDeg.toStringAsFixed(1)}° (${swing.faceLabel})'),
+                  _row('Club path',
+                      '${swing.clubPathDeg >= 0 ? '+' : ''}${swing.clubPathDeg.toStringAsFixed(1)}° (${swing.pathLabel})'),
                   _row('Recorded', swing.timestamp.toLocal().toString()),
                   _row('Path samples', '${swing.pathM.length}'),
                 ],
@@ -35,13 +37,9 @@ class SwingDetailScreen extends StatelessWidget {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(12),
-              child: SizedBox(
-                height: 320,
-                child: CustomPaint(
-                  painter: PathPainter(
-                      path: swing.pathM, impactIndex: swing.impactIndex),
-                  child: const SizedBox.expand(),
-                ),
+              child: SwingPathGauge(
+                deviationDeg: swing.clubPathDeg,
+                height: 300,
               ),
             ),
           ),

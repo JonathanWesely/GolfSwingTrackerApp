@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golf_tracker_app/src/calibration/calibration.dart';
 import 'package:golf_tracker_app/src/models/club_profile.dart';
 import 'package:golf_tracker_app/src/models/swing_metrics.dart';
 import 'package:golf_tracker_app/src/processing/quaternion.dart';
@@ -9,6 +10,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 SwingMetrics swing({
   double mph = 85,
   double face = 1.5,
+  double clubPath = 0,
   String deviceId = 'mock-1',
   String deviceLabel = 'Jonathan',
   int sourceFlags = 0,
@@ -23,6 +25,7 @@ SwingMetrics swing({
       deviceId: deviceId,
       deviceLabel: deviceLabel,
       sourceFlags: sourceFlags,
+      clubPathDeg: clubPath,
     );
 
 void main() {
@@ -35,7 +38,7 @@ void main() {
   group('SwingDatabase', () {
     test('swings round-trip with full fidelity', () async {
       final db = await openDb();
-      final m = swing(sourceFlags: 0x05);
+      final m = swing(sourceFlags: 0x05, clubPath: -3.5);
       await db.insertSwing(m);
 
       final loaded = await db.loadSwings();
@@ -49,6 +52,7 @@ void main() {
       expect(l.faceAngleDeg, closeTo(m.faceAngleDeg, 1e-12));
       expect(l.impactIndex, m.impactIndex);
       expect(l.sourceFlags, 0x05);
+      expect(l.clubPathDeg, closeTo(-3.5, 1e-12));
       expect(l.pathM.length, m.pathM.length);
       expect((l.pathM[1] - m.pathM[1]).length, lessThan(1e-12));
       await db.close();
@@ -119,6 +123,23 @@ void main() {
       ]);
       final loaded = await db.loadSensors();
       expect([for (final s in loaded) s.id], ['mock-2']);
+      await db.close();
+    });
+
+    test('calibration round-trips (and is null before any is saved)',
+        () async {
+      final db = await openDb();
+      expect(await db.loadCalibration(), isNull);
+      await db.saveCalibration(const Calibration(
+          faceOffset: -0.8, pathScale: -1.0, pathOffset: 1.2));
+      final c = await db.loadCalibration();
+      expect(c, isNotNull);
+      expect(c!.faceOffset, closeTo(-0.8, 1e-12));
+      expect(c.pathScale, closeTo(-1.0, 1e-12));
+      expect(c.pathOffset, closeTo(1.2, 1e-12));
+      // Replacing overwrites the single row.
+      await db.saveCalibration(const Calibration(faceOffset: 0.3));
+      expect((await db.loadCalibration())!.faceOffset, closeTo(0.3, 1e-12));
       await db.close();
     });
   });
