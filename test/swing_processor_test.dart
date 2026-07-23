@@ -6,22 +6,50 @@ import 'package:golf_tracker_app/src/processing/swing_processor.dart';
 import 'package:golf_tracker_app/src/sensor/mock_sensor_link.dart';
 
 void main() {
-  const driver = ClubProfile(id: 'driver', name: 'Driver', shaftLengthM: 1.143);
+  // Effective radius (sensor-to-clubface distance) matches the value the mock
+  // uses to synthesize the gyro, so speed round-trips exactly.
+  const driver = ClubProfile(
+      id: 'driver',
+      name: 'Driver',
+      shaftLengthM: 1.143,
+      deviceToFaceDistanceM: 1.143);
   const processor = SwingProcessor();
 
   group('SwingProcessor recovers known synthetic ground truth', () {
     test('club speed within 3% of injected value', () {
       final mock = MockSensorLink(seed: 1);
       final capture = mock.generateSwing(
-          clubheadSpeedMph: 80, faceAngleDeg: 0, shaftLengthM: 1.143);
+          clubheadSpeedMph: 80, faceAngleDeg: 0, radiusM: 1.143);
       final m = processor.process(capture, driver);
       expect(m.clubSpeedMph, closeTo(80, 80 * 0.03));
+    });
+
+    test('clubhead speed uses deviceToFaceDistanceM as the radius, not shaft '
+        'length', () {
+      // Shaft length and sensor-to-clubface distance deliberately differ.
+      const club = ClubProfile(
+          id: 'driver',
+          name: 'Driver',
+          shaftLengthM: 1.143,
+          deviceToFaceDistanceM: 1.0);
+      final mock = MockSensorLink(seed: 6);
+      // Mock injects the omega that yields 80 mph at r = deviceToFaceDistanceM.
+      final capture = mock.generateSwing(
+          clubheadSpeedMph: 80,
+          faceAngleDeg: 0,
+          radiusM: club.deviceToFaceDistanceM);
+      final m = processor.process(capture, club);
+      // Recovered speed round-trips through deviceToFaceDistanceM…
+      expect(m.clubSpeedMph, closeTo(80, 80 * 0.03));
+      // …and is NOT what the (larger) shaft length would have produced.
+      final wrong = 80 * club.shaftLengthM / club.deviceToFaceDistanceM;
+      expect((m.clubSpeedMph - wrong).abs(), greaterThan(80 * 0.05));
     });
 
     test('club path reads ~straight for the laterally-clean mock swing', () {
       final mock = MockSensorLink(seed: 1);
       final capture = mock.generateSwing(
-          clubheadSpeedMph: 80, faceAngleDeg: 0, shaftLengthM: 1.143);
+          clubheadSpeedMph: 80, faceAngleDeg: 0, radiusM: 1.143);
       final m = processor.process(capture, driver);
       // The mock injects no sideways path deviation, so the recovered club
       // path must sit near zero. A large value would mean the velocity or
@@ -32,7 +60,7 @@ void main() {
     test('applies a calibration to face and path', () {
       final mock = MockSensorLink(seed: 2);
       final capture = mock.generateSwing(
-          clubheadSpeedMph: 75, faceAngleDeg: 4.0, shaftLengthM: 1.143);
+          clubheadSpeedMph: 75, faceAngleDeg: 4.0, radiusM: 1.143);
       const cal =
           Calibration(faceOffset: 2.0, pathScale: -1.0, pathOffset: 1.0);
       final raw = processor.process(capture, driver);
@@ -44,7 +72,7 @@ void main() {
     test('face angle within 0.7 degrees (open)', () {
       final mock = MockSensorLink(seed: 2);
       final capture = mock.generateSwing(
-          clubheadSpeedMph: 75, faceAngleDeg: 4.0, shaftLengthM: 1.143);
+          clubheadSpeedMph: 75, faceAngleDeg: 4.0, radiusM: 1.143);
       final m = processor.process(capture, driver);
       expect(m.faceAngleDeg, closeTo(4.0, 0.7));
     });
@@ -52,7 +80,7 @@ void main() {
     test('face angle sign flips for closed face', () {
       final mock = MockSensorLink(seed: 3);
       final capture = mock.generateSwing(
-          clubheadSpeedMph: 75, faceAngleDeg: -6.0, shaftLengthM: 1.143);
+          clubheadSpeedMph: 75, faceAngleDeg: -6.0, radiusM: 1.143);
       final m = processor.process(capture, driver);
       expect(m.faceAngleDeg, closeTo(-6.0, 0.7));
     });
@@ -60,11 +88,13 @@ void main() {
     test('path is a plausible arc: monotonic bounds and impact position', () {
       final mock = MockSensorLink(seed: 4);
       final capture = mock.generateSwing(
-          clubheadSpeedMph: 80, faceAngleDeg: 0, shaftLengthM: 1.143);
+          clubheadSpeedMph: 80, faceAngleDeg: 0, radiusM: 1.143);
       final m = processor.process(capture, driver);
 
-      // Grip pivot radius in the mock is 0.75 m — path extent must be in
-      // that order of magnitude (not meters of drift, not millimeters).
+      // The returned path is the reconstructed CLUBHEAD path (sensor path +
+      // lever arm r along the shaft). Its extent must stay in the
+      // sub-meter/meter order of magnitude (not meters of drift, not
+      // millimeters).
       var maxDist = 0.0;
       for (final p in m.pathM) {
         if (p.length > maxDist) maxDist = p.length;
@@ -79,7 +109,7 @@ void main() {
     test('impact position recovered to within 15 cm of ground truth', () {
       final mock = MockSensorLink(seed: 5);
       final capture = mock.generateSwing(
-          clubheadSpeedMph: 80, faceAngleDeg: 2.0, shaftLengthM: 1.143);
+          clubheadSpeedMph: 80, faceAngleDeg: 2.0, radiusM: 1.143);
       final m = processor.process(capture, driver);
 
       // Mock geometry guarantees the grip returns to the address position

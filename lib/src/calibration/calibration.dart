@@ -2,7 +2,8 @@
 /// they match a trusted reference (a Garmin Approach R10 launch monitor).
 ///
 /// Club **speed** is calibrated separately — by adjusting each club's
-/// effective radius (`ClubProfile.shaftLengthM`), see [CalibrationResult] —
+/// effective radius (`ClubProfile.deviceToFaceDistanceM`), see
+/// [CalibrationResult] —
 /// so it does not appear here.
 ///
 /// Applied in [SwingProcessor]:

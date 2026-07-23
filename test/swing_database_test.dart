@@ -81,14 +81,23 @@ void main() {
     test('clubs round-trip preserving order and edits', () async {
       final db = await openDb();
       final clubs = [
-        const ClubProfile(id: 'driver', name: 'My Driver', shaftLengthM: 1.16),
-        const ClubProfile(id: '7i', name: '7 Iron', shaftLengthM: 0.94),
+        const ClubProfile(
+            id: 'driver',
+            name: 'My Driver',
+            shaftLengthM: 1.16,
+            deviceToFaceDistanceM: 1.02),
+        const ClubProfile(
+            id: '7i',
+            name: '7 Iron',
+            shaftLengthM: 0.94,
+            deviceToFaceDistanceM: 0.80),
       ];
       await db.saveClubs(clubs);
       final loaded = await db.loadClubs();
       expect([for (final c in loaded) c.id], ['driver', '7i']);
       expect(loaded.first.name, 'My Driver');
       expect(loaded.first.shaftLengthM, closeTo(1.16, 1e-12));
+      expect(loaded.first.deviceToFaceDistanceM, closeTo(1.02, 1e-12));
       await db.close();
     });
 

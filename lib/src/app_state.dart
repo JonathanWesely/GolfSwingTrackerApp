@@ -21,7 +21,8 @@ import 'storage/swing_repository.dart';
 /// Identity model: the [id] is stable hardware identity (BLE remoteId, or a
 /// mock counter); the [label] is whatever the user wants to see — a player's
 /// name ("Jonathan") or a club's ("Driver sensor"). Each sensor also carries
-/// its own [club] profile so swings are scaled with the right shaft length.
+/// its own [club] profile so swings are scaled with the right effective
+/// radius (sensor-to-clubface distance).
 class ConnectedSensor {
   final String id;
   final SensorLink link;
@@ -66,7 +67,7 @@ class PendingInstant {
     required this.metrics,
   });
 
-  double get clubSpeedMph => metrics.clubSpeedMph(club.shaftLengthM);
+  double get clubSpeedMph => metrics.clubSpeedMph(club.deviceToFaceDistanceM);
   double get faceAngleDeg => metrics.faceAngleDeg;
 }
 
@@ -102,7 +103,7 @@ class AppState extends ChangeNotifier {
 
   /// Face/path correction applied to every capture, from the R10 calibration
   /// flow. Identity until you calibrate. (Speed calibration lives in each
-  /// club's effective radius, ClubProfile.shaftLengthM.)
+  /// club's effective radius, ClubProfile.deviceToFaceDistanceM.)
   Calibration calibration = const Calibration.identity();
 
   AppState({
@@ -292,7 +293,7 @@ class AppState extends ChangeNotifier {
     final link = s.link;
     if (link is! MockSensorLink) return;
     if (on) {
-      link.startAutoSwings(shaftLengthM: () => s.club.shaftLengthM);
+      link.startAutoSwings(radiusM: () => s.club.deviceToFaceDistanceM);
     } else {
       link.stopAutoSwings();
     }
@@ -317,8 +318,9 @@ class AppState extends ChangeNotifier {
     result.speedScaleByClub.forEach((clubId, scale) {
       final i = clubs.indexWhere((c) => c.id == clubId);
       if (i >= 0) {
-        clubs[i] =
-            clubs[i].copyWith(shaftLengthM: clubs[i].shaftLengthM * scale);
+        clubs[i] = clubs[i].copyWith(
+            deviceToFaceDistanceM:
+                clubs[i].deviceToFaceDistanceM * scale);
       }
     });
     for (final s in sensors) {

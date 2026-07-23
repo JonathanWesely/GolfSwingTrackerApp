@@ -78,10 +78,11 @@ class MockSensorLink implements SensorLink {
   bool get autoSwinging => _autoTimer != null;
 
   /// Hands-free demo: emits a randomized swing every [interval] while armed.
-  /// [shaftLengthM] is read per-swing so club reassignment takes effect live.
+  /// [radiusM] (sensor-to-clubface distance) is read per-swing so club
+  /// reassignment takes effect live.
   void startAutoSwings({
     Duration interval = const Duration(seconds: 6),
-    required double Function() shaftLengthM,
+    required double Function() radiusM,
   }) {
     _autoTimer?.cancel();
     _autoTimer = Timer.periodic(interval, (_) {
@@ -89,7 +90,7 @@ class MockSensorLink implements SensorLink {
       simulateSwing(
         clubheadSpeedMph: 68 + _rng.nextDouble() * 32,
         faceAngleDeg: -5 + _rng.nextDouble() * 10,
-        shaftLengthM: shaftLengthM(),
+        radiusM: radiusM(),
       );
     });
   }
@@ -108,13 +109,13 @@ class MockSensorLink implements SensorLink {
   Future<void> simulateSwing({
     double clubheadSpeedMph = 80,
     double faceAngleDeg = 2.0,
-    double shaftLengthM = 1.143,
+    double radiusM = 1.0,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     final capture = generateSwing(
       clubheadSpeedMph: clubheadSpeedMph,
       faceAngleDeg: faceAngleDeg,
-      shaftLengthM: shaftLengthM,
+      radiusM: radiusM,
     );
 
     // Instant metrics: what firmware knows the moment impact is detected.
@@ -175,14 +176,14 @@ class MockSensorLink implements SensorLink {
   SwingCapture generateSwing({
     required double clubheadSpeedMph,
     required double faceAngleDeg,
-    required double shaftLengthM,
+    required double radiusM,
   }) {
     const tImpact = 1.45;
     const tEnd = 2.0;
     final dt = 1.0 / sampleRateHz;
     final n = (tEnd * sampleRateHz).round() + 1;
 
-    final omegaPeak = (clubheadSpeedMph / 2.23694) / shaftLengthM; // rad/s
+    final omegaPeak = (clubheadSpeedMph / 2.23694) / radiusM; // rad/s
     // Backswing peak scaled so total backswing rotation equals the
     // downswing rotation up to impact — i.e. the club RETURNS TO THE
     // ADDRESS POSITION at impact, like a real swing. (Validated: with

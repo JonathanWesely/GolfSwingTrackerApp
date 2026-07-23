@@ -7,7 +7,7 @@ void main() {
       () {
     final mock = MockSensorLink(seed: 7);
     final capture = mock.generateSwing(
-        clubheadSpeedMph: 80, faceAngleDeg: 3.0, shaftLengthM: 1.143);
+        clubheadSpeedMph: 80, faceAngleDeg: 3.0, radiusM: 1.143);
 
     final chunks = SwingPacketCodec.encode(capture);
 
@@ -40,7 +40,7 @@ void main() {
   test('out-of-range accel saturates cleanly instead of wrapping around', () {
     final mock = MockSensorLink(seed: 9);
     final capture = mock.generateSwing(
-        clubheadSpeedMph: 110, faceAngleDeg: 0, shaftLengthM: 1.143);
+        clubheadSpeedMph: 110, faceAngleDeg: 0, radiusM: 1.143);
     final decoded = SwingPacketCodec.decode(SwingPacketCodec.encode(capture))!;
 
     // The mock's rigid-arm swing really does exceed the codec range…
@@ -69,7 +69,7 @@ void main() {
   test('decode returns null while chunks are missing', () {
     final mock = MockSensorLink(seed: 8);
     final capture = mock.generateSwing(
-        clubheadSpeedMph: 60, faceAngleDeg: 0, shaftLengthM: 1.0);
+        clubheadSpeedMph: 60, faceAngleDeg: 0, radiusM: 1.0);
     final chunks = SwingPacketCodec.encode(capture);
 
     final partial = List.of(chunks.map((c) => c as dynamic)).cast<dynamic>();

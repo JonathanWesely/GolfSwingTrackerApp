@@ -43,8 +43,8 @@ class InstantMetrics {
   /// Impact time, microseconds since capture start.
   final int tUs;
 
-  /// Peak gyro magnitude at impact, rad/s. Multiply by the club's shaft
-  /// length for clubhead speed (v = omega * r).
+  /// Peak gyro magnitude at impact, rad/s. Multiply by the club's
+  /// sensor-to-clubface distance for clubhead speed (v = omega * r).
   final double peakOmegaRadS;
 
   /// Face angle at impact relative to address, degrees (positive = open).
@@ -60,9 +60,8 @@ class InstantMetrics {
     this.sourceFlags = 0,
   });
 
-  double clubSpeedMps(double shaftLengthM) => peakOmegaRadS * shaftLengthM;
-  double clubSpeedMph(double shaftLengthM) =>
-      clubSpeedMps(shaftLengthM) * 2.23694;
+  double clubSpeedMps(double radiusM) => peakOmegaRadS * radiusM;
+  double clubSpeedMph(double radiusM) => clubSpeedMps(radiusM) * 2.23694;
 }
 
 /// Codec for the Instant Metrics characteristic (12 bytes, little-endian):

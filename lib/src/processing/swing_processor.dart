@@ -50,9 +50,11 @@ class SwingProcessor {
     }
 
     // --- 2. Club speed: v = omega * r ------------------------------------
-    // The club's effective radius (shaftLengthM) is where speed calibration
-    // lives — a calibrated radius scales this directly.
-    final clubSpeedMps = peakOmega * club.shaftLengthM;
+    // The effective radius is the sensor-to-clubface distance along the
+    // shaft (deviceToFaceDistanceM) — where speed calibration lives; a
+    // calibrated radius scales this directly.
+    final radiusM = club.deviceToFaceDistanceM;
+    final clubSpeedMps = peakOmega * radiusM;
 
     // --- 3. Face angle: twist about shaft, address -> impact --------------
     // Relative rotation in the body frame: r = qAddress^-1 * qImpact.
@@ -84,11 +86,26 @@ class SwingProcessor {
       }
     }
 
-    // Position (trapezoidal), origin at address.
-    final path = List<Vector3>.filled(samples.length, Vector3.zero);
+    // Position (trapezoidal), origin at address. This is the SENSOR path.
+    final sensorPath = List<Vector3>.filled(samples.length, Vector3.zero);
     for (var i = 1; i < samples.length; i++) {
-      path[i] = path[i - 1] + (vel[i] + vel[i - 1]) * (dt / 2);
+      sensorPath[i] =
+          sensorPath[i - 1] + (vel[i] + vel[i - 1]) * (dt / 2);
     }
+
+    // --- 4b. Clubhead path via the lever arm -----------------------------
+    // The sensor is clamped on the shaft; the clubhead is `radiusM` metres
+    // further along the shaft (+Z body axis). Reconstruct the clubhead
+    // position per sample and re-base to its address position so the path
+    // origin stays at address (matching the sensor-path convention above).
+    final leverAddress =
+        samples.first.orientation.rotate(shaftAxis * radiusM);
+    final path = <Vector3>[
+      for (var i = 0; i < samples.length; i++)
+        sensorPath[i] +
+            samples[i].orientation.rotate(shaftAxis * radiusM) -
+            leverAddress
+    ];
 
     // --- 5. Club path: horizontal travel direction at impact -------------
     // The direction the grip is actually moving through impact, expressed in

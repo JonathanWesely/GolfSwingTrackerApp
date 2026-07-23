@@ -33,7 +33,7 @@ class SensorRecord {
 /// with the real sqflite factory in main.dart; on-device this uses the
 /// platform's native SQLite (Android/iOS).
 class SwingDatabase {
-  static const int schemaVersion = 3;
+  static const int schemaVersion = 4;
 
   final Database _db;
   SwingDatabase._(this._db);
@@ -69,6 +69,7 @@ class SwingDatabase {
               id TEXT PRIMARY KEY,
               name TEXT NOT NULL,
               shaft_length_m REAL NOT NULL,
+              device_to_face_distance_m REAL NOT NULL DEFAULT 1.0,
               sort INTEGER NOT NULL DEFAULT 0
             )
           ''');
@@ -108,6 +109,16 @@ class SwingDatabase {
                 path_offset REAL NOT NULL
               )
             ''');
+          }
+          // v3 -> v4: sensor moved from the grip butt-end to a shaft clamp;
+          // record the sensor-to-clubface distance (the effective radius).
+          // Backfill from the old shaft length, which is what was used as the
+          // radius before the remount, so existing speeds are preserved.
+          if (oldVersion < 4) {
+            await db.execute('ALTER TABLE clubs ADD COLUMN '
+                'device_to_face_distance_m REAL NOT NULL DEFAULT 1.0');
+            await db.execute('UPDATE clubs SET '
+                'device_to_face_distance_m = shaft_length_m');
           }
         },
       ),
@@ -183,6 +194,7 @@ class SwingDatabase {
           'id': clubs[i].id,
           'name': clubs[i].name,
           'shaft_length_m': clubs[i].shaftLengthM,
+          'device_to_face_distance_m': clubs[i].deviceToFaceDistanceM,
           'sort': i,
         });
       }
@@ -198,6 +210,9 @@ class SwingDatabase {
           id: r['id'] as String,
           name: r['name'] as String,
           shaftLengthM: (r['shaft_length_m'] as num).toDouble(),
+          deviceToFaceDistanceM:
+              (r['device_to_face_distance_m'] as num?)?.toDouble() ??
+                  (r['shaft_length_m'] as num).toDouble(),
         )
     ];
   }

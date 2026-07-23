@@ -42,8 +42,9 @@ class CalibrationSample {
 
 /// The fitted calibration plus diagnostics.
 class CalibrationResult {
-  /// Multiply each club's current effective radius (`shaftLengthM`) by this
-  /// to match the reference club speed. Keyed by clubId.
+  /// Multiply each club's current effective radius
+  /// (`deviceToFaceDistanceM`) by this to match the reference club speed.
+  /// Keyed by clubId.
   final Map<String, double> speedScaleByClub;
 
   /// Face/path correction to apply to future captures.

@@ -117,7 +117,7 @@ void main() {
     await mock.simulateSwing(
         clubheadSpeedMph: 85.0,
         faceAngleDeg: 2.0,
-        shaftLengthM: sensor.club.shaftLengthM);
+        radiusM: sensor.club.deviceToFaceDistanceM);
     await pumpEventQueue2();
 
     expect(state.repository.count, 1);

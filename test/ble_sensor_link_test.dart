@@ -13,7 +13,7 @@ import 'fake_ble_transport.dart';
 
 SwingCapture testCapture({int seed = 11}) =>
     MockSensorLink(seed: seed).generateSwing(
-        clubheadSpeedMph: 85, faceAngleDeg: 2.5, shaftLengthM: 1.143);
+        clubheadSpeedMph: 85, faceAngleDeg: 2.5, radiusM: 1.143);
 
 BleSensorLink makeLink(FakeTransport t, {String? targetRemoteId}) =>
     BleSensorLink(

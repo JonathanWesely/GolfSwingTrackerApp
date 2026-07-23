@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../models/club_profile.dart';
 
-/// Edits club shaft-length constants. Which club a given SENSOR uses is
+/// Edits club profiles. The sensor-to-clubface distance is the effective
+/// radius the physics uses (v = ω × r) now that the sensor clamps to the
+/// shaft rather than the grip butt-end. Which club a given SENSOR uses is
 /// assigned per-sensor on the home screen (multi-device support).
 class ClubProfileScreen extends StatelessWidget {
   final AppState state;
@@ -20,19 +22,24 @@ class ClubProfileScreen extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                  'Shaft length scales grip rotation into clubhead speed '
-                  '(v = ω × r). Adjust to match your actual clubs. '
-                  'Assign a club to each sensor from the home screen.'),
+                  'The sensor-to-clubface distance is the effective radius '
+                  'that scales grip rotation into clubhead speed (v = ω × r) '
+                  'and reconstructs the clubhead path. Measure it along the '
+                  'shaft from the mounted sensor — with the clamp slid up '
+                  'against the bottom of the grip (its repeatable position) — '
+                  'to the face. Assign a club to '
+                  'each sensor from the home screen.'),
             ),
             for (final club in state.clubs)
               ListTile(
                 leading: const Icon(Icons.golf_course),
                 title: Text(club.name),
                 subtitle: Text(
-                    '${club.shaftLengthM.toStringAsFixed(3)} m '
-                    '(${(club.shaftLengthM / 0.0254).toStringAsFixed(1)}")'),
+                    'Sensor→face: ${club.deviceToFaceDistanceM.toStringAsFixed(3)} m '
+                    '(${(club.deviceToFaceDistanceM / 0.0254).toStringAsFixed(1)}")'
+                    '  ·  Shaft: ${club.shaftLengthM.toStringAsFixed(3)} m'),
                 trailing: const Icon(Icons.edit),
-                onTap: () => _editLength(context, club),
+                onTap: () => _edit(context, club),
               ),
           ],
         ),
@@ -40,33 +47,62 @@ class ClubProfileScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _editLength(BuildContext context, ClubProfile club) async {
-    final controller =
+  Future<void> _edit(BuildContext context, ClubProfile club) async {
+    final distanceCtrl = TextEditingController(
+        text: club.deviceToFaceDistanceM.toStringAsFixed(3));
+    final shaftCtrl =
         TextEditingController(text: club.shaftLengthM.toStringAsFixed(3));
-    final result = await showDialog<double>(
+    final saved = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('${club.name} shaft length'),
-        content: TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(suffixText: 'm'),
-          autofocus: true,
+        title: Text(club.name),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: distanceCtrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Sensor-to-clubface distance (m)',
+                helperText: 'Clamp seated against the grip → measured to the face',
+                suffixText: 'm',
+              ),
+              autofocus: true,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: shaftCtrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Total club length (m)',
+                suffixText: 'm',
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context, false),
               child: const Text('Cancel')),
           FilledButton(
-            onPressed: () =>
-                Navigator.pop(context, double.tryParse(controller.text)),
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('Save'),
           ),
         ],
       ),
     );
-    if (result != null && result > 0.3 && result < 1.5) {
-      state.updateClub(club.copyWith(shaftLengthM: result));
+    if (saved != true) return;
+    final distance = double.tryParse(distanceCtrl.text);
+    final shaft = double.tryParse(shaftCtrl.text);
+    var updated = club;
+    if (distance != null && distance > 0.3 && distance < 1.5) {
+      updated = updated.copyWith(deviceToFaceDistanceM: distance);
     }
+    if (shaft != null && shaft > 0.3 && shaft < 1.5) {
+      updated = updated.copyWith(shaftLengthM: shaft);
+    }
+    if (updated != club) state.updateClub(updated);
   }
 }

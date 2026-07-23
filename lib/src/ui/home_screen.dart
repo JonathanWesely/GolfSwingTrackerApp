@@ -277,7 +277,7 @@ class _SensorCard extends StatelessWidget {
                     FilledButton.tonal(
                       onPressed: () =>
                           (sensor.link as MockSensorLink).simulateSwing(
-                        shaftLengthM: sensor.club.shaftLengthM,
+                        radiusM: sensor.club.deviceToFaceDistanceM,
                       ),
                       child: const Text('Simulate swing'),
                     ),
