@@ -70,5 +70,7 @@
 	<string>Connects to your GolfTracker swing sensor over Bluetooth.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>Connects to your GolfTracker swing sensor over Bluetooth.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
