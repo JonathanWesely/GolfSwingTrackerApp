@@ -8,6 +8,13 @@
 # - Developer Portal integration key named exactly "AppStoreConnect"
 # - the SAME Apple Distribution certificate (one cert covers every app on
 #   the account); only this app's App Store provisioning profile is new
+#
+# NO Podfile, NO pod install: every iOS plugin here ships as a Swift
+# Package, so Flutter builds this app with Swift Package Manager and
+# raises the min iOS to 15.0 itself. A leftover CocoaPods Podfile makes
+# the archive FAIL with "your project still has CocoaPods integration"
+# (2026-09-26 build 1). The Pokemon app is the opposite case: ML Kit is
+# not a Swift Package, so THAT project keeps its Podfile.
 workflows:
   ios-testflight:
     name: iOS TestFlight
@@ -25,8 +32,6 @@ workflows:
         script: xcode-project use-profiles
       - name: Get Flutter packages
         script: flutter pub get
-      - name: Install pods
-        script: find . -name "Podfile" -execdir pod install \;
       - name: Flutter build ipa
         script: |
           # CFBundleVersion must be unique per TestFlight upload;
