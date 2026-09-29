@@ -36,11 +36,12 @@ class FlutterBluePlusTransport implements BleTransport {
           final advName = r.advertisementData.advName.isNotEmpty
               ? r.advertisementData.advName
               : r.device.platformName;
-          // Match on the advertised service when we have one (reliable on
-          // iOS even when the name is absent from the report); the name
-          // remains as a fallback for transports/platforms without it.
-          final byService = service != null &&
-              r.advertisementData.serviceUuids.contains(service);
+          // When a service filter was given, the PLATFORM already
+          // filtered the results — and iOS may park a 128-bit service id
+          // in the overflow area, where it never shows up in
+          // serviceUuids. So every delivered result IS a match;
+          // re-checking the uuid here threw real matches away.
+          final byService = service != null;
           if ((byService || advName == name) && !ctrl.isClosed) {
             ctrl.add(BleScanHit(
               remoteId: r.device.remoteId.str,
