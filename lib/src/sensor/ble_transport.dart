@@ -21,10 +21,17 @@ class BleScanHit {
 /// fake, so every line of protocol logic (chunk reassembly, reconnect,
 /// control ops) is testable without a radio or hardware.
 abstract class BleTransport {
-  /// Streams advertisements from devices named [name] until the listener
-  /// cancels or [timeout] elapses (then the stream closes).
+  /// Streams advertisements until the listener cancels or [timeout]
+  /// elapses (then the stream closes). Devices match by [serviceUuid]
+  /// when given — the service id rides in the PRIMARY advertising packet
+  /// — falling back to the advertised [name]. iOS often reports a device
+  /// only once per scan and without its name (the name arrives in the
+  /// separate scan-response packet), so name-only matching missed the
+  /// sensor entirely (found 2026-09-30: nRF Connect saw GolfTracker, the
+  /// app's scan never did).
   Stream<BleScanHit> scan({
     required String name,
+    String? serviceUuid,
     Duration timeout = const Duration(seconds: 15),
   });
 

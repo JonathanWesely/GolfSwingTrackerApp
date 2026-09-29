@@ -17,6 +17,7 @@ class FakeTransport implements BleTransport {
   @override
   Stream<BleScanHit> scan({
     required String name,
+    String? serviceUuid,
     Duration timeout = const Duration(seconds: 15),
   }) =>
       Stream.fromIterable(advertised.where((h) => h.name == name));

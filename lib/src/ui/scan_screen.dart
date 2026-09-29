@@ -44,7 +44,9 @@ class _ScanScreenState extends State<ScanScreen> {
     });
     final transport = widget.transport ?? widget.state.bleTransportFactory();
     _sub = transport
-        .scan(name: BleSensorLink.advertisedName)
+        .scan(
+            name: BleSensorLink.advertisedName,
+            serviceUuid: BleSensorLink.advertisedService)
         .listen(
           (hit) => setState(() => _hits[hit.remoteId] = hit),
           onError: (Object e) => setState(() {

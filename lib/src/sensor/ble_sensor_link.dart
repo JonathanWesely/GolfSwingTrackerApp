@@ -27,6 +27,11 @@ import 'sensor_link.dart';
 class BleSensorLink implements SensorLink {
   static const String advertisedName = 'GolfTracker';
 
+  /// The Swing Service UUID the firmware puts in its advertising packet —
+  /// scans match on THIS (iOS can report a device without its name; see
+  /// BleTransport.scan).
+  static const String advertisedService = GattIds.swingService;
+
   /// Protocol minimum for 7-samples-per-chunk bursts (see BLE_PROTOCOL.md).
   static const int desiredMtu = 185;
 
@@ -141,7 +146,10 @@ class BleSensorLink implements SensorLink {
   /// Scans for the first device advertising [advertisedName].
   Future<String> _findDevice() async {
     final hit = await _transport
-        .scan(name: advertisedName, timeout: scanTimeout)
+        .scan(
+            name: advertisedName,
+            serviceUuid: advertisedService,
+            timeout: scanTimeout)
         .firstWhere((h) => targetRemoteId == null || h.remoteId == targetRemoteId,
             orElse: () => throw TimeoutException(
                 'No $advertisedName sensor found within '

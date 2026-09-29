@@ -14,9 +14,11 @@ class FlutterBluePlusTransport implements BleTransport {
   @override
   Stream<BleScanHit> scan({
     required String name,
+    String? serviceUuid,
     Duration timeout = const Duration(seconds: 15),
   }) {
     final ctrl = StreamController<BleScanHit>();
+    final Guid? service = serviceUuid == null ? null : Guid(serviceUuid);
     StreamSubscription<List<ScanResult>>? resultsSub;
     StreamSubscription<bool>? scanningSub;
 
@@ -34,10 +36,15 @@ class FlutterBluePlusTransport implements BleTransport {
           final advName = r.advertisementData.advName.isNotEmpty
               ? r.advertisementData.advName
               : r.device.platformName;
-          if (advName == name && !ctrl.isClosed) {
+          // Match on the advertised service when we have one (reliable on
+          // iOS even when the name is absent from the report); the name
+          // remains as a fallback for transports/platforms without it.
+          final byService = service != null &&
+              r.advertisementData.serviceUuids.contains(service);
+          if ((byService || advName == name) && !ctrl.isClosed) {
             ctrl.add(BleScanHit(
               remoteId: r.device.remoteId.str,
-              name: advName,
+              name: advName.isNotEmpty ? advName : name,
               rssi: r.rssi,
             ));
           }
@@ -53,7 +60,8 @@ class FlutterBluePlusTransport implements BleTransport {
 
       try {
         await FlutterBluePlus.startScan(
-          withNames: [name],
+          withServices: service == null ? const [] : [service],
+          withNames: service == null ? [name] : const [],
           timeout: timeout,
         );
       } catch (e, st) {
