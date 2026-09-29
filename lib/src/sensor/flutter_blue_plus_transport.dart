@@ -36,12 +36,11 @@ class FlutterBluePlusTransport implements BleTransport {
           final advName = r.advertisementData.advName.isNotEmpty
               ? r.advertisementData.advName
               : r.device.platformName;
-          // When a service filter was given, the PLATFORM already
-          // filtered the results — and iOS may park a 128-bit service id
-          // in the overflow area, where it never shows up in
-          // serviceUuids. So every delivered result IS a match;
-          // re-checking the uuid here threw real matches away.
-          final byService = service != null;
+          // Unfiltered scan (see startScan below), so match here on
+          // EITHER the advertised service id OR the name — whichever of
+          // the two the platform managed to hear for this report.
+          final byService = service != null &&
+              r.advertisementData.serviceUuids.contains(service);
           if ((byService || advName == name) && !ctrl.isClosed) {
             ctrl.add(BleScanHit(
               remoteId: r.device.remoteId.str,
@@ -60,9 +59,15 @@ class FlutterBluePlusTransport implements BleTransport {
       });
 
       try {
+        // NO platform filters — scan wide open, exactly like a generic
+        // scanner app, and filter in Dart above. Native filtering burned
+        // us twice on iOS (2026-09-30): name-filtered scans miss reports
+        // that arrive without the name, and service-filtered scans
+        // delivered nothing at all for this sensor. continuousUpdates
+        // keeps reports coming so a late scan-response (which carries
+        // the name) still produces a match.
         await FlutterBluePlus.startScan(
-          withServices: service == null ? const [] : [service],
-          withNames: service == null ? [name] : const [],
+          continuousUpdates: true,
           timeout: timeout,
         );
       } catch (e, st) {
