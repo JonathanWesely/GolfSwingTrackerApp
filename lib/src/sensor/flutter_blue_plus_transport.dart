@@ -70,6 +70,16 @@ class FlutterBluePlusTransport implements BleTransport {
       });
 
       try {
+        // CoreBluetooth reports "unknown" for the first moments after an
+        // app's Bluetooth manager is created, and starting a scan in
+        // that window throws (CBManagerStateUnknown) — which the
+        // instant-close bug above used to SWALLOW, so every scan failed
+        // silently as "no sensors found" (2026-09-30). Wait for the
+        // radio to actually come up before scanning.
+        await FlutterBluePlus.adapterState
+            .where((s) => s == BluetoothAdapterState.on)
+            .first
+            .timeout(const Duration(seconds: 5));
         // NO platform filters — scan wide open, exactly like a generic
         // scanner app, and filter in Dart above. Native filtering burned
         // us twice on iOS (2026-09-30): name-filtered scans miss reports
