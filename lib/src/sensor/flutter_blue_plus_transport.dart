@@ -54,8 +54,19 @@ class FlutterBluePlusTransport implements BleTransport {
       });
 
       // Close our stream when the platform reports the scan has ended.
+      // isScanning REPLAYS its latest value (false) to every new
+      // listener, so only treat false as "ended" after we have seen the
+      // scan actually running — otherwise the stream closes the instant
+      // it opens and every scan comes back empty in ~0 s (the root cause
+      // of 2026-09-30's "no sensors found", through three matcher
+      // rewrites that never got to run).
+      var sawScanning = false;
       scanningSub = FlutterBluePlus.isScanning.listen((scanning) {
-        if (!scanning && !ctrl.isClosed) ctrl.close();
+        if (scanning) {
+          sawScanning = true;
+        } else if (sawScanning && !ctrl.isClosed) {
+          ctrl.close();
+        }
       });
 
       try {

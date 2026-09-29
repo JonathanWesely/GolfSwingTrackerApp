@@ -110,7 +110,7 @@ class _ScanScreenState extends State<ScanScreen> {
                       _scanning
                           ? 'Scanning for "${BleSensorLink.advertisedName}"…\n\n'
                               'Power the sensor and keep it nearby.'
-                          : 'No sensors found.\n\nSensors appear here once '
+                          : 'No sensors found (scanner v3).\n\nSensors appear here once '
                               'Phase 1 firmware is flashed and advertising.',
                       textAlign: TextAlign.center,
                     ),
