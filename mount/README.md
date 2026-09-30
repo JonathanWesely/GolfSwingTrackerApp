@@ -59,6 +59,27 @@ knobs, so you just tighten each club to firm. One clamp covers a whole set. Note
 - Parametric: `shaft_circ_min` / `shaft_circ_max` / `shaft_clear` / `liner` in
   `generate_enclosure.py` set the range. Re-measure and re-run to retune.
 
+## Mounting orientation
+
+Two rules fix the sensor's frame on the club. Together they make every re-mount
+land in the same orientation on every club:
+
+1. **Along the shaft** (existing firmware assumption — `docs/BLE_PROTOCOL.md`,
+   Frame conventions): the sensor's **+Z axis points down the shaft toward the
+   clubhead**. The bundle is taped into the box that way (assembly step 2), so
+   in practice: the box's +Z end faces the clubhead.
+2. **Around the shaft**: rotate the mount so the **USB port points in the same
+   direction as the line along the bottom of the club face (the leading edge),
+   extended outward past the toe**. Sole the club square at address, sight the
+   leading edge, aim the USB port that way, then tighten the knobs.
+
+Eyeball accuracy is fine. The address calibration (1 s still hold) stores the
+actual mounted orientation as the reference, so a few degrees of roll error
+changes nothing in the math — the convention exists so re-mounts are repeatable
+club to club and the face-angle **sign** keeps one fixed physical meaning
+(positive = open, right-handed) that can be sanity-checked against a launch
+monitor.
+
 ## Files
 
 | File | Purpose |
@@ -105,7 +126,8 @@ parts.
    to the port) with a foam shim; fit the gasket; screw the lid down; plug USB.
 3. Put the two halves around the shaft; pass a thumb-knob up through each side
    into its captive nut (four total). Slide the mount **up until the register lip
-   butts the grip**.
+   butts the grip**, and rotate it so the **USB port aims along the clubface's
+   leading edge, out past the toe** (see *Mounting orientation*).
 4. **Hand-tighten all four knobs** — firm, no wiggle. Tune the liner thickness so
    locked = firm, loose = slides.
 5. Set that club's **sensor-to-clubface distance** in the app (from the register

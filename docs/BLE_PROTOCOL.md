@@ -69,6 +69,11 @@ The app reassembles chunks in any order and accepts retransmits
 ## Frame conventions
 
 - Sensor mounted with **+Z pointing down the shaft toward the clubhead**.
+- Roll around the shaft: enclosure mounted with the **USB port aimed along the
+  club face's leading edge, outward past the toe** (see `mount/README.md`,
+  *Mounting orientation*). The address calibration absorbs roll error; this
+  convention fixes re-mount repeatability and the face-angle sign's physical
+  meaning.
 - **Single-IMU capture**: all sample fields come from the **ICM-20649**
   (±4000 dps / ±30 g) on one clock. Quaternions are computed by firmware
   (Madgwick over the ICM's gyro+accel, mag-free), body → world; linear
